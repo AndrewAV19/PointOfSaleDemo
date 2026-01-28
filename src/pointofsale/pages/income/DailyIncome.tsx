@@ -1,0 +1,444 @@
+import React, { useState, useMemo, useCallback } from "react";
+import {
+  Box,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Chip,
+  Card,
+  CardContent,
+  Grid,
+  alpha,
+  useTheme,
+  Popover,
+} from "@mui/material";
+import {
+  AttachMoney,
+  TrendingUp,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  CalendarToday,
+} from "@mui/icons-material";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
+//import { useIncomeStore } from "../../../stores/income.store";
+import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { es } from "date-fns/locale";
+import { mockDailyIncome } from "../../mocks/tiendaAbarrotes.mock";
+
+const DailyIncome: React.FC = () => {
+  const theme = useTheme();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [calendarAnchor, setCalendarAnchor] = useState<null | HTMLElement>(
+    null
+  );
+  //const { dailyIncome, getDailyIncome } = useIncomeStore();
+
+  // useEffect(() => {
+  //   const year = selectedDate.getFullYear();
+  //   const month = selectedDate.getMonth() + 1;
+  //   const day = selectedDate.getDate();
+
+  //   getDailyIncome(year, month, day);
+  // }, [selectedDate, getDailyIncome]);
+
+  const data = mockDailyIncome;
+
+  const changeDate = useCallback((direction: "prev" | "next") => {
+    setSelectedDate((prev) => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() + (direction === "prev" ? -1 : 1));
+      return newDate;
+    });
+  }, []);
+
+  const handleCalendarOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setCalendarAnchor(event.currentTarget);
+  };
+
+  const handleCalendarClose = () => {
+    setCalendarAnchor(null);
+  };
+
+  const handleDateSelect = (newDate: Date | null) => {
+    if (newDate) {
+      setSelectedDate(newDate);
+      setCalendarAnchor(null);
+    }
+  };
+
+  const formatDate = useCallback((date: Date) => {
+    return date.toLocaleDateString("es-MX", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  }, []);
+
+  const incomeByHourArray = useMemo(() => {
+    const generateAllHours = (incomeByHour: { [key: string]: number }) => {
+      const hours = [];
+      for (let i = 0; i < 24; i++) {
+        hours.push({
+          hour: `${i}:00`,
+          Ingreso: incomeByHour[i] || 0,
+        });
+      }
+      return hours;
+    };
+
+    return generateAllHours(data?.incomeByHour ?? []);
+  }, [data?.incomeByHour]);
+
+  const formatXAxis = useCallback((tickItem: string) => {
+    const hour = parseInt(tickItem.split(":")[0], 10);
+    return hour % 2 === 0 ? tickItem : "";
+  }, []);
+
+  const formatCurrency = useCallback((value: number) => {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }, []);
+
+  const formatCompactCurrency = useCallback((value: number) => {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  }, []);
+
+  const getBarColor = useCallback(
+    (value: number) => {
+      if (value === 0) return alpha(theme.palette.primary.main, 0.3);
+      if (value < 1000) return theme.palette.primary.light;
+      if (value < 5000) return theme.palette.primary.main;
+      return theme.palette.primary.dark;
+    },
+    [theme]
+  );
+
+  const isToday = useMemo(() => {
+    const today = new Date();
+    return selectedDate.toDateString() === today.toDateString();
+  }, [selectedDate]);
+
+  const calendarOpen = Boolean(calendarAnchor);
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+      <Box className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+        {/* Header Section */}
+        <Box className="mb-8">
+          <Typography
+            variant="h4"
+            className="font-bold text-gray-900 mb-2"
+            sx={{ fontWeight: 600 }}
+          >
+            Análisis de Ingresos Diarios
+          </Typography>
+          <Typography variant="body1" className="text-gray-600">
+            Monitoreo detallado de transacciones y rendimiento comercial
+          </Typography>
+        </Box>
+
+        {/* Date Selector */}
+        <Card className="mb-8 shadow-lg rounded-2xl">
+          <CardContent className="p-4">
+            <Box className="flex items-center justify-between">
+              <IconButton
+                onClick={() => changeDate("prev")}
+                className="text-gray-600 hover:bg-gray-100 transition-colors"
+                size="large"
+              >
+                <ChevronLeft />
+              </IconButton>
+
+              <Box className="flex items-center gap-3">
+                <IconButton
+                  onClick={handleCalendarOpen}
+                  className="text-gray-500 hover:bg-gray-100 transition-colors"
+                  size="medium"
+                >
+                  <CalendarToday />
+                </IconButton>
+                <Typography
+                  variant="h6"
+                  className="font-semibold text-gray-800 capitalize cursor-pointer"
+                  onClick={handleCalendarOpen}
+                >
+                  {formatDate(selectedDate)}
+                </Typography>
+                {isToday && (
+                  <Chip
+                    label="Hoy"
+                    size="small"
+                    color="primary"
+                    variant="filled"
+                  />
+                )}
+              </Box>
+
+              <IconButton
+                onClick={() => changeDate("next")}
+                className="text-gray-600 hover:bg-gray-100 transition-colors"
+                size="large"
+                disabled={isToday}
+              >
+                <ChevronRight />
+              </IconButton>
+            </Box>
+
+            {/* Calendario Popover */}
+            <Popover
+              open={calendarOpen}
+              anchorEl={calendarAnchor}
+              onClose={handleCalendarClose}
+              anchorOrigin={{
+                vertical: "bottom",
+                horizontal: "center",
+              }}
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "center",
+              }}
+              PaperProps={{
+                sx: {
+                  borderRadius: "12px",
+                  boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                  overflow: "hidden",
+                },
+              }}
+            >
+              <Box className="p-2">
+                <DateCalendar
+                  value={selectedDate}
+                  onChange={handleDateSelect}
+                  views={["year", "month", "day"]}
+                  sx={{
+                    "& .MuiPickersDay-root": {
+                      borderRadius: "8px",
+                      "&.Mui-selected": {
+                        backgroundColor: theme.palette.primary.main,
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            </Popover>
+          </CardContent>
+        </Card>
+
+        {/* El resto de tu código permanece igual */}
+        {/* Metrics Cards */}
+        <Grid container spacing={3} className="mb-8">
+          <Grid item xs={12} md={4}>
+            <Card className="h-full shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden">
+              <CardContent className="p-6 bg-gradient-to-br from-blue-600 to-blue-700 text-white">
+                <Box className="flex items-center justify-between mb-4">
+                  <Typography variant="h6" className="font-semibold">
+                    Ingresos Totales
+                  </Typography>
+                  <Box className="p-2 bg-white bg-opacity-20 rounded-lg">
+                    <AttachMoney className="text-2xl" />
+                  </Box>
+                </Box>
+                <Typography variant="h4" className="font-bold mb-2">
+                  {formatCurrency(data?.totalIncome || 0)}
+                </Typography>
+                <Typography variant="body2" className="text-blue-100">
+                  Rendimiento total del día
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card className="h-full shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden">
+              <CardContent className="p-6 bg-gradient-to-br from-green-600 to-green-700 text-white">
+                <Box className="flex items-center justify-between mb-4">
+                  <Typography variant="h6" className="font-semibold">
+                    Transacciones
+                  </Typography>
+                  <Box className="p-2 bg-white bg-opacity-20 rounded-lg">
+                    <Receipt className="text-2xl" />
+                  </Box>
+                </Box>
+                <Typography variant="h4" className="font-bold mb-2">
+                  {data?.numberOfTransactions || 0}
+                </Typography>
+                <Typography variant="body2" className="text-green-100">
+                  Operaciones procesadas
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card className="h-full shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden">
+              <CardContent className="p-6 bg-gradient-to-br from-purple-600 to-purple-700 text-white">
+                <Box className="flex items-center justify-between mb-4">
+                  <Typography variant="h6" className="font-semibold">
+                    Ticket Promedio
+                  </Typography>
+                  <Box className="p-2 bg-white bg-opacity-20 rounded-lg">
+                    <TrendingUp className="text-2xl" />
+                  </Box>
+                </Box>
+                <Typography variant="h4" className="font-bold mb-2">
+                  {formatCurrency(data?.averageTicket || 0)}
+                </Typography>
+                <Typography variant="body2" className="text-purple-100">
+                  Valor promedio por transacción
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Hourly Income Chart */}
+        <Card className="mb-8 shadow-lg rounded-2xl overflow-hidden">
+          <CardContent className="p-6">
+            <Typography
+              variant="h6"
+              className="font-semibold mb-6 text-gray-800"
+            >
+              Distribución de Ingresos por Hora
+            </Typography>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={incomeByHourArray}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={alpha(theme.palette.divider, 0.6)}
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="hour"
+                  tickFormatter={formatXAxis}
+                  tick={{ fill: theme.palette.text.secondary }}
+                  axisLine={false}
+                />
+                <YAxis
+                  tick={{ fill: theme.palette.text.secondary }}
+                  axisLine={false}
+                  tickFormatter={(value) => formatCompactCurrency(value)}
+                />
+                <Tooltip
+                  formatter={(value) => [
+                    formatCurrency(Number(value)),
+                    "Ingreso",
+                  ]}
+                  labelFormatter={(label) => `Hora: ${label}`}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: theme.shadows[3],
+                  }}
+                />
+                <Legend />
+                <Bar
+                  dataKey="Ingreso"
+                  name="Ingresos por Hora"
+                  radius={[4, 4, 0, 0]}
+                >
+                  {incomeByHourArray.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={getBarColor(entry.Ingreso)}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Recent Transactions Table */}
+        <Card className="shadow-lg rounded-2xl overflow-hidden">
+          <CardContent className="p-6">
+            <Typography
+              variant="h6"
+              className="font-semibold mb-6 text-gray-800"
+            >
+              Historial de Transacciones
+            </Typography>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell className="font-semibold text-gray-700">
+                      Fecha y Hora
+                    </TableCell>
+                    <TableCell className="font-semibold text-gray-700">
+                      Monto
+                    </TableCell>
+                    <TableCell className="font-semibold text-gray-700">
+                      Atendido por
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data?.lastFiveTransactions?.map((tx, index) => (
+                    <TableRow
+                      key={tx.id}
+                      className={index % 2 === 0 ? "bg-gray-50" : ""}
+                      hover
+                    >
+                      <TableCell className="text-gray-600">
+                        {tx.createdAt
+                          ? new Date(tx.createdAt).toLocaleString("es-MX", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Fecha no disponible"}
+                      </TableCell>
+                      <TableCell className="font-semibold text-gray-900">
+                        {formatCurrency(tx.total)}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={tx.user?.name || "No asignado"}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      </Box>
+    </LocalizationProvider>
+  );
+};
+
+export default DailyIncome;
